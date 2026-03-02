@@ -8,7 +8,7 @@ import javax.swing.JPanel;
 public class GameWindow extends JInternalFrame
 {
     private final GameVisualizer m_visualizer;
-    public GameWindow() 
+    public GameWindow()
     {
         super("Игровое поле", true, true, true, true);
         m_visualizer = new GameVisualizer();
