@@ -3,6 +3,8 @@ package gui;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -21,19 +23,11 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 import log.Logger;
 
-/**
- * Что требуется сделать:
- * 1. Метод создания меню перегружен функционалом и трудно читается.
- * Следует разделить его на серию более простых методов (или вообще выделить отдельный класс).
- *
- */
 public class MainApplicationFrame extends JFrame
 {
     private final JDesktopPane desktopPane = new JDesktopPane();
 
     public MainApplicationFrame() {
-        //Make the big window be indented 50 pixels from each edge
-        //of the screen.
         int inset = 50;
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
         setBounds(inset, inset,
@@ -41,7 +35,6 @@ public class MainApplicationFrame extends JFrame
                 screenSize.height - inset*2);
 
         setContentPane(desktopPane);
-
 
         LogWindow logWindow = createLogWindow();
         addWindow(logWindow);
@@ -51,7 +44,15 @@ public class MainApplicationFrame extends JFrame
         addWindow(gameWindow);
 
         setJMenuBar(generateMenuBar());
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                exitApplication();
+            }
+        });
 
         // Загружаем сохраненные позиции окон при запуске
         loadWindowPositions();
@@ -114,10 +115,8 @@ public class MainApplicationFrame extends JFrame
             testMenu.add(addLogMessageItem);
         }
 
-        // Добавляем разделитель перед пунктом Выход
         testMenu.addSeparator();
 
-        // Пункт меню для выхода
         JMenuItem exitMenuItem = new JMenuItem("Выход", KeyEvent.VK_X);
         exitMenuItem.addActionListener((event) -> {
             exitApplication();
@@ -139,13 +138,9 @@ public class MainApplicationFrame extends JFrame
         catch (ClassNotFoundException | InstantiationException
                | IllegalAccessException | UnsupportedLookAndFeelException e)
         {
-            // just ignore
         }
     }
 
-    /**
-     * Метод для выхода из приложения с подтверждением
-     */
     private void exitApplication() {
         int result = JOptionPane.showOptionDialog(
                 this,
@@ -158,24 +153,29 @@ public class MainApplicationFrame extends JFrame
                 "Нет"
         );
 
-        if (result == 0) { // Если нажали "Да"
+        if (result == 0) {
             saveWindowPositions();
             System.exit(0);
         }
     }
 
-    /**
-     * Сохраняет позиции и состояние всех внутренних окон в XML-файл
-     * в домашней директории пользователя.
-     */
     private void saveWindowPositions() {
         try {
             String userHome = System.getProperty("user.home");
             File configFile = new File(userHome, ".robots_window_config.xml");
             Properties props = new Properties();
 
-            for (JInternalFrame frame : desktopPane.getAllFrames()) {
+            JInternalFrame[] frames = desktopPane.getAllFrames();
+
+            StringBuilder zOrder = new StringBuilder();
+
+            for (JInternalFrame frame : frames) {
                 String frameName = frame.getTitle();
+
+                if (zOrder.length() > 0) {
+                    zOrder.append(",");
+                }
+                zOrder.append(frameName);
 
                 props.setProperty(frameName + ".x", String.valueOf(frame.getX()));
                 props.setProperty(frameName + ".y", String.valueOf(frame.getY()));
@@ -185,31 +185,30 @@ public class MainApplicationFrame extends JFrame
                 props.setProperty(frameName + ".maximum", String.valueOf(frame.isMaximum()));
             }
 
+            props.setProperty("window.zorder", zOrder.toString());
+
             props.storeToXML(new FileOutputStream(configFile), "Robot Application Window Positions");
-            System.out.println("Window positions saved to: " + configFile.getAbsolutePath());
 
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * Загружает позиции и состояние окон из XML-файла и применяет их.
-     */
     private void loadWindowPositions() {
         try {
             String userHome = System.getProperty("user.home");
             File configFile = new File(userHome, ".robots_window_config.xml");
 
             if (!configFile.exists()) {
-                System.out.println("Config file not found, using default window positions.");
                 return;
             }
 
             Properties props = new Properties();
             props.loadFromXML(new FileInputStream(configFile));
 
-            for (JInternalFrame frame : desktopPane.getAllFrames()) {
+            JInternalFrame[] frames = desktopPane.getAllFrames();
+
+            for (JInternalFrame frame : frames) {
                 String frameName = frame.getTitle();
 
                 String xStr = props.getProperty(frameName + ".x");
@@ -232,22 +231,30 @@ public class MainApplicationFrame extends JFrame
                 if ("true".equals(maxStr)) {
                     try {
                         frame.setMaximum(true);
-                    } catch (Exception e) {
-                        // игнорируем
-                    }
+                    } catch (Exception e) {}
                 }
 
                 String iconStr = props.getProperty(frameName + ".icon");
                 if ("true".equals(iconStr) && !"true".equals(maxStr)) {
                     try {
                         frame.setIcon(true);
-                    } catch (Exception e) {
-                        // игнорируем
-                    }
+                    } catch (Exception e) {}
                 }
             }
 
-            System.out.println("Window positions loaded from: " + configFile.getAbsolutePath());
+            String zOrderStr = props.getProperty("window.zorder");
+            if (zOrderStr != null && !zOrderStr.isEmpty()) {
+                String[] frameTitles = zOrderStr.split(",");
+                for (int i = frameTitles.length - 1; i >= 0; i--) {
+                    for (JInternalFrame frame : frames) {
+                        if (frame.getTitle().equals(frameTitles[i])) {
+                            desktopPane.setComponentZOrder(frame, 0);
+                            frame.toFront();
+                            break;
+                        }
+                    }
+                }
+            }
 
         } catch (Exception e) {
             e.printStackTrace();
