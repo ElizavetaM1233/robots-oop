@@ -6,29 +6,28 @@ import java.io.*;
 import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Тесты для проверки сохранения и загрузки конфигурации окон
- */
 public class MainApplicationFrameTest {
     private MainApplicationFrame frame;
 
     @BeforeEach
     void setUp() {
-        // Создаем главное окно перед каждым тестом
         frame = new MainApplicationFrame();
     }
 
     @AfterEach
     void tearDown() {
-        // Закрываем окно после каждого теста
         if (frame != null) {
             frame.dispose();
         }
+
+        // Удаляем тестовый файл
+        String userHome = System.getProperty("user.home");
+        File configFile = new File(userHome, ".robots_window_config.xml");
+        if (configFile.exists()) {
+            configFile.delete();
+        }
     }
 
-    /**
-     * ТЕСТ 1: Проверка создания файла конфигурации
-     */
     @Test
     void testSaveWindowPositions_createsFile() throws Exception {
         String userHome = System.getProperty("user.home");
@@ -38,17 +37,17 @@ public class MainApplicationFrameTest {
             configFile.delete();
         }
 
-        invokeSaveWindowPositions(frame);
+        java.lang.reflect.Method method =
+                MainApplicationFrame.class.getDeclaredMethod("saveWindowPositions");
+        method.setAccessible(true);
+        method.invoke(frame);
 
         assertTrue(configFile.exists(), "Файл конфигурации должен быть создан");
     }
 
-    /**
-     * ТЕСТ 2: Проверка сохранения координат окна
-     */
     @Test
     void testSaveWindowPositions_savesCorrectCoordinates() throws Exception {
-        JInternalFrame[] frames = getDesktopPaneFrames(frame);
+        JInternalFrame[] frames = getDesktopPaneFrames();
 
         if (frames.length > 0) {
             JInternalFrame testFrame = frames[0];
@@ -56,7 +55,10 @@ public class MainApplicationFrameTest {
             testFrame.setLocation(123, 456);
             testFrame.setSize(789, 321);
 
-            invokeSaveWindowPositions(frame);
+            java.lang.reflect.Method saveMethod =
+                    MainApplicationFrame.class.getDeclaredMethod("saveWindowPositions");
+            saveMethod.setAccessible(true);
+            saveMethod.invoke(frame);
 
             String userHome = System.getProperty("user.home");
             File configFile = new File(userHome, ".robots_window_config.xml");
@@ -75,12 +77,9 @@ public class MainApplicationFrameTest {
         }
     }
 
-    /**
-     * ТЕСТ 3: Проверка загрузки координат из файла
-     */
     @Test
     void testLoadWindowPositions_loadsCorrectCoordinates() throws Exception {
-        JInternalFrame[] frames = getDesktopPaneFrames(frame);
+        JInternalFrame[] frames = getDesktopPaneFrames();
 
         if (frames.length > 0) {
             JInternalFrame testFrame = frames[0];
@@ -103,7 +102,10 @@ public class MainApplicationFrameTest {
 
             testFrame.setLocation(999, 999);
 
-            invokeLoadWindowPositions(frame);
+            java.lang.reflect.Method loadMethod =
+                    MainApplicationFrame.class.getDeclaredMethod("loadWindowPositions");
+            loadMethod.setAccessible(true);
+            loadMethod.invoke(frame);
 
             assertEquals(111, testFrame.getX());
             assertEquals(222, testFrame.getY());
@@ -112,12 +114,9 @@ public class MainApplicationFrameTest {
         }
     }
 
-    /**
-     * ТЕСТ 4: Проверка сохранения состояния окна
-     */
     @Test
     void testSaveWindowPositions_savesWindowState() throws Exception {
-        JInternalFrame[] frames = getDesktopPaneFrames(frame);
+        JInternalFrame[] frames = getDesktopPaneFrames();
 
         if (frames.length > 0) {
             JInternalFrame testFrame = frames[0];
@@ -125,7 +124,10 @@ public class MainApplicationFrameTest {
             boolean wasIcon = testFrame.isIcon();
             boolean wasMaximum = testFrame.isMaximum();
 
-            invokeSaveWindowPositions(frame);
+            java.lang.reflect.Method saveMethod =
+                    MainApplicationFrame.class.getDeclaredMethod("saveWindowPositions");
+            saveMethod.setAccessible(true);
+            saveMethod.invoke(frame);
 
             String userHome = System.getProperty("user.home");
             File configFile = new File(userHome, ".robots_window_config.xml");
@@ -142,9 +144,6 @@ public class MainApplicationFrameTest {
         }
     }
 
-    /**
-     * ТЕСТ 5: Проверка, что файл создается в домашней папке
-     */
     @Test
     void testConfigFileLocation() {
         String userHome = System.getProperty("user.home");
@@ -154,23 +153,7 @@ public class MainApplicationFrameTest {
         assertEquals(".robots_window_config.xml", configFile.getName());
     }
 
-    // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
-
-    private void invokeSaveWindowPositions(MainApplicationFrame frame) throws Exception {
-        java.lang.reflect.Method method =
-                MainApplicationFrame.class.getDeclaredMethod("saveWindowPositions");
-        method.setAccessible(true);
-        method.invoke(frame);
-    }
-
-    private void invokeLoadWindowPositions(MainApplicationFrame frame) throws Exception {
-        java.lang.reflect.Method method =
-                MainApplicationFrame.class.getDeclaredMethod("loadWindowPositions");
-        method.setAccessible(true);
-        method.invoke(frame);
-    }
-
-    private JInternalFrame[] getDesktopPaneFrames(MainApplicationFrame frame) throws Exception {
+    private JInternalFrame[] getDesktopPaneFrames() throws Exception {
         java.lang.reflect.Field field =
                 MainApplicationFrame.class.getDeclaredField("desktopPane");
         field.setAccessible(true);
